@@ -41,16 +41,22 @@ const publishAVideo = asyncHandler(async (req, res) => {
     const duration = videoUrl?.duration ?? 0;
 
 
-    const video = await Video.create({
-        videoFile: videoUrl.secure_url,
-        thumbnail: thumbnailUrl.secure_url,
-        title,
-        description,
-        duration,
-        views: 0,
-        isPublished: true,
-        owner: req.user._id,
-    });
+    try {
+        const video = await Video.create({
+            videoFile: videoUrl.secure_url,
+            thumbnail: thumbnailUrl.secure_url,
+            title,
+            description,
+            duration,
+            views: 0,
+            isPublished: true,
+            owner: req.user._id,
+        });
+    } catch (error) {
+        if(videoUrl) await deleteFromCloudinary(videoUrl.secure_url);
+        if(thumbnailUrl) await deleteFromCloudinary(thumbnailUrl.secure_url);
+        throw new ApiError(500, "Failed to create video.");
+    }
 
     return res.status(201).json(new ApiResponse(201, video, "Video uploaded successfully."));
 });
@@ -136,7 +142,34 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    //TODO: delete video
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID.");
+    }
+
+    if (!req.user) {
+        throw new ApiError(401, "Unauthorized request. Please log in.");
+    }
+    const _id = req.user._id;   
+
+    const video = await Video.findById(videoId);
+    if (!video) {
+        throw new ApiError(404, "Video not found.");
+    }
+
+    if (video.owner.toString() !== _id.toString()) {
+        throw new ApiError(403, "You are not authorized to delete this video.");
+    }
+
+    try {
+        await deleteFromCloudinary(video.videoFile);
+        await deleteFromCloudinary(video.thumbnail);
+        await video.remove();
+    } catch (error) {
+        throw new ApiError(500, "Failed to delete video.");
+    }
+
+    return res.status(200).json(new ApiResponse(200, null, "Video deleted successfully."));
     
 })
 
