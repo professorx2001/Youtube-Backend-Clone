@@ -39,6 +39,7 @@ router
                 }
             ]),
             updateVideo)
+        .delete(deleteVideo)
 
 
 
