@@ -29,10 +29,8 @@ const createTweet = asyncHandler(async (req, res) => {
 const getUserTweets = asyncHandler(async (req, res) => {
     
     const tweets = await Tweet.find({ owner: req.user._id });
-    console.log("above it");
-    
-    if(tweets.length === 0) {    
-        console.log("below it");
+
+    if(tweets.length === 0) { 
         return res.status(404).json(new ApiResponse(404, null, "No tweets found."));
     }
     
